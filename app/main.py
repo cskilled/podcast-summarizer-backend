@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.api.v1.router import api_router
+from app.api.v1.podcasts_v2 import router as podcasts_v2_router
 
 
 @asynccontextmanager
@@ -32,8 +33,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API router
+# Include API routers
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+app.include_router(podcasts_v2_router)  # V2 endpoints with PodcastIndex
 
 
 @app.get("/")

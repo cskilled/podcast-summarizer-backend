@@ -20,7 +20,6 @@ class Episode(Base):
     title = Column(String, nullable=False)
     description = Column(Text)
     audio_url = Column(String, nullable=False)
-    youtube_video_id = Column(String, index=True)
     published_date = Column(DateTime(timezone=True), nullable=False, index=True)
     duration_seconds = Column(Integer, nullable=False, index=True)
     podcast_id = Column(Integer, ForeignKey("podcasts.id", ondelete='CASCADE'), nullable=False)

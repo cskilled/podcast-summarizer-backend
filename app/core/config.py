@@ -18,9 +18,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
 
     # AWS Configuration
-    AWS_REGION: str = Field(default="us-east-1")
+    AWS_REGION: str = Field(default="us-west-2")
     AWS_ACCESS_KEY_ID: str | None = Field(default=None)
     AWS_SECRET_ACCESS_KEY: str | None = Field(default=None)
+    AWS_SESSION_TOKEN: str | None = Field(default=None)  # For temporary credentials
     S3_BUCKET_NAME: str = Field(default="podcast-audio-bucket")
 
     # Amazon Bedrock
@@ -28,7 +29,11 @@ class Settings(BaseSettings):
 
     # Google Gemini (Fallback)
     GEMINI_API_KEY: str | None = Field(default=None)
-    GEMINI_MODEL_NAME: str = Field(default="gemini-1.5-flash")
+    GEMINI_MODEL_NAME: str = Field(default="gemini-2.0-flash")
+
+    # PodcastIndex API
+    PODCASTINDEX_API_KEY: str | None = Field(default=None)
+    PODCASTINDEX_API_SECRET: str | None = Field(default=None)
 
     # API Settings
     API_V1_PREFIX: str = Field(default="/api/v1")

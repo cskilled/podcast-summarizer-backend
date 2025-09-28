@@ -82,7 +82,6 @@ class RecommenderService:
                 "title": episode.title,
                 "description": episode.description,
                 "audio_url": episode.audio_url,
-                "youtube_video_id": episode.youtube_video_id,
                 "published_date": episode.published_date,
                 "duration_seconds": episode.duration_seconds,
                 "podcast_id": episode.podcast_id,

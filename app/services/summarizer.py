@@ -15,12 +15,16 @@ class SummarizerService:
 
         if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
             try:
-                self.bedrock_client = boto3.client(
-                    'bedrock-runtime',
-                    region_name=settings.AWS_REGION,
-                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-                )
+                aws_config = {
+                    'region_name': settings.AWS_REGION,
+                    'aws_access_key_id': settings.AWS_ACCESS_KEY_ID,
+                    'aws_secret_access_key': settings.AWS_SECRET_ACCESS_KEY
+                }
+                # Add session token if present (for temporary credentials)
+                if settings.AWS_SESSION_TOKEN:
+                    aws_config['aws_session_token'] = settings.AWS_SESSION_TOKEN
+
+                self.bedrock_client = boto3.client('bedrock-runtime', **aws_config)
                 print("✅ Bedrock client initialized")
             except Exception as e:
                 print(f"⚠️  Failed to initialize Bedrock: {str(e)}")
