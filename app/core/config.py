@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     # Amazon Bedrock
     BEDROCK_MODEL_ID: str = Field(default="anthropic.claude-3-sonnet-20240229-v1:0")
 
+    # Google Gemini (Fallback)
+    GEMINI_API_KEY: str | None = Field(default=None)
+    GEMINI_MODEL_NAME: str = Field(default="gemini-1.5-flash")
+
     # API Settings
     API_V1_PREFIX: str = Field(default="/api/v1")
     CORS_ORIGINS: List[str] = Field(default=["http://localhost:3000", "http://localhost:8000"])

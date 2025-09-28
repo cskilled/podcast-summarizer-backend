@@ -6,18 +6,39 @@ from app.core.config import settings
 
 
 class SummarizerService:
-    """Service for generating summaries using Amazon Bedrock with Claude."""
+    """Service for generating summaries using Amazon Bedrock with Gemini fallback."""
 
     def __init__(self):
-        self.bedrock_client = boto3.client(
-            'bedrock-runtime',
-            region_name=settings.AWS_REGION,
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-        )
+        # Try to initialize Bedrock client
+        self.bedrock_client = None
+        self.gemini_model = None
+
+        if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
+            try:
+                self.bedrock_client = boto3.client(
+                    'bedrock-runtime',
+                    region_name=settings.AWS_REGION,
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+                )
+                print("✅ Bedrock client initialized")
+            except Exception as e:
+                print(f"⚠️  Failed to initialize Bedrock: {str(e)}")
+                self.bedrock_client = None
+
+        # Initialize Gemini as fallback
+        if settings.GEMINI_API_KEY:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=settings.GEMINI_API_KEY)
+                self.gemini_model = genai.GenerativeModel(settings.GEMINI_MODEL_NAME)
+                print("✅ Gemini fallback initialized")
+            except Exception as e:
+                print(f"⚠️  Failed to initialize Gemini: {str(e)}")
+                self.gemini_model = None
 
     def create_prompt(self, transcript: str, categories: List[str]) -> str:
-        """Create a prompt for the Claude model."""
+        """Create a prompt for the AI model."""
         categories_list = ", ".join(categories)
 
         prompt = f"""You are an AI assistant tasked with summarizing podcast episodes and categorizing them.
@@ -42,12 +63,15 @@ Ensure the categories you select are ONLY from the provided list above. Select b
 
         return prompt
 
-    async def generate_summary(
+    async def generate_summary_with_bedrock(
         self,
         transcript: str,
         available_categories: List[str]
     ) -> Dict[str, Any]:
-        """Generate summary and categorization using Amazon Bedrock."""
+        """Generate summary using Amazon Bedrock."""
+        if not self.bedrock_client:
+            raise Exception("Bedrock client not available")
+
         prompt = self.create_prompt(transcript, available_categories)
 
         # Prepare the request for Claude
@@ -63,49 +87,112 @@ Ensure the categories you select are ONLY from the provided list above. Select b
             ]
         }
 
+        # Invoke the model
+        response = self.bedrock_client.invoke_model(
+            modelId=settings.BEDROCK_MODEL_ID,
+            body=json.dumps(request_body),
+            contentType='application/json'
+        )
+
+        # Parse the response
+        response_body = json.loads(response['body'].read())
+
+        # Extract the text from Claude's response
+        assistant_response = response_body.get('content', [{}])[0].get('text', '{}')
+
+        # Parse the JSON response
         try:
-            # Invoke the model
-            response = self.bedrock_client.invoke_model(
-                modelId=settings.BEDROCK_MODEL_ID,
-                body=json.dumps(request_body),
-                contentType='application/json'
-            )
-
-            # Parse the response
-            response_body = json.loads(response['body'].read())
-
-            # Extract the text from Claude's response
-            assistant_response = response_body.get('content', [{}])[0].get('text', '{}')
-
-            # Parse the JSON response
-            try:
-                result = json.loads(assistant_response)
-            except json.JSONDecodeError:
-                # If JSON parsing fails, extract content manually
-                # This is a fallback for when the model doesn't return valid JSON
-                result = {
-                    "summary": assistant_response,
-                    "categories": []
-                }
-
-            # Validate categories are from the available list
-            valid_categories = [
-                cat for cat in result.get("categories", [])
-                if cat in available_categories
-            ]
-
-            return {
-                "summary": result.get("summary", "Summary generation failed"),
-                "categories": valid_categories
-            }
-
-        except Exception as e:
-            print(f"Error generating summary with Bedrock: {str(e)}")
-            # Return a default response in case of error
-            return {
-                "summary": "Failed to generate summary due to technical error.",
+            result = json.loads(assistant_response)
+        except json.JSONDecodeError:
+            # If JSON parsing fails, extract content manually
+            result = {
+                "summary": assistant_response,
                 "categories": []
             }
+
+        return result
+
+    async def generate_summary_with_gemini(
+        self,
+        transcript: str,
+        available_categories: List[str]
+    ) -> Dict[str, Any]:
+        """Generate summary using Google Gemini as fallback."""
+        if not self.gemini_model:
+            raise Exception("Gemini model not available")
+
+        prompt = self.create_prompt(transcript, available_categories)
+
+        # Generate with Gemini
+        response = self.gemini_model.generate_content(prompt)
+
+        # Extract the text response
+        assistant_response = response.text
+
+        # Parse the JSON response
+        try:
+            # Find JSON in the response (Gemini might add extra text)
+            import re
+            json_match = re.search(r'\{.*\}', assistant_response, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group())
+            else:
+                result = json.loads(assistant_response)
+        except (json.JSONDecodeError, AttributeError):
+            # If JSON parsing fails, create a structured response
+            result = {
+                "summary": assistant_response[:500] if len(assistant_response) > 500 else assistant_response,
+                "categories": []
+            }
+
+        return result
+
+    async def generate_summary(
+        self,
+        transcript: str,
+        available_categories: List[str]
+    ) -> Dict[str, Any]:
+        """Generate summary using Bedrock with Gemini fallback."""
+        result = None
+
+        # Try Bedrock first
+        if self.bedrock_client:
+            try:
+                print("🔄 Attempting summary with Bedrock...")
+                result = await self.generate_summary_with_bedrock(transcript, available_categories)
+                print("✅ Summary generated with Bedrock")
+            except Exception as e:
+                print(f"❌ Bedrock failed: {str(e)}")
+                result = None
+
+        # Fallback to Gemini if Bedrock fails
+        if result is None and self.gemini_model:
+            try:
+                print("🔄 Falling back to Gemini...")
+                result = await self.generate_summary_with_gemini(transcript, available_categories)
+                print("✅ Summary generated with Gemini")
+            except Exception as e:
+                print(f"❌ Gemini also failed: {str(e)}")
+                result = None
+
+        # If both fail, return a default response
+        if result is None:
+            print("⚠️  All AI services failed, returning default response")
+            return {
+                "summary": "Unable to generate summary. Please check your AI service configuration.",
+                "categories": []
+            }
+
+        # Validate categories are from the available list
+        valid_categories = [
+            cat for cat in result.get("categories", [])
+            if cat in available_categories
+        ]
+
+        return {
+            "summary": result.get("summary", "Summary generation failed"),
+            "categories": valid_categories[:5]  # Limit to 5 categories
+        }
 
     async def summarize_episode(
         self,
