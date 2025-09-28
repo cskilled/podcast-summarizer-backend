@@ -1,0 +1,33 @@
+[project]
+name = "podcast-summarizer-backend"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Emad Anwer",email = "e.anwer@buguard.io"}
+]
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "fastapi[standard] (>=0.117.1,<0.118.0)",
+    "uvicorn[standard] (>=0.37.0,<0.38.0)",
+    "pydantic (>=2.11.9,<3.0.0)",
+    "pydantic-settings (>=2.11.0,<3.0.0)",
+    "sqlalchemy (>=2.0.43,<3.0.0)",
+    "alembic (>=1.16.5,<2.0.0)",
+    "asyncpg (>=0.30.0,<0.31.0)",
+    "psycopg2-binary (>=2.9.10,<3.0.0)",
+    "boto3 (>=1.40.40,<2.0.0)",
+    "python-jose[cryptography] (>=3.5.0,<4.0.0)",
+    "passlib[bcrypt] (>=1.7.4,<2.0.0)",
+    "httpx (>=0.28.1,<0.29.0)",
+    "feedparser (>=6.0.12,<7.0.0)",
+    "pytube (>=15.0.0,<16.0.0)",
+    "python-multipart (>=0.0.20,<0.0.21)",
+    "youtube-transcript-api (>=1.2.2,<2.0.0)",
+    "bcrypt (==4.0.1)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
